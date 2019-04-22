@@ -1,0 +1,5 @@
+-cp src
+#Numcp
+-main Main
+-D analyzer-optimize
+-js output/lib/js/numcp.js
