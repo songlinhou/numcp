@@ -6,6 +6,44 @@ function $extend(from, fields) {
 	if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;
 	return proto;
 }
+var ArrayUtil = function() { };
+ArrayUtil.__name__ = true;
+ArrayUtil.main = function() {
+	var test = [[0,1,2],[3,4,5]];
+	var copyA = test.slice();
+	var copyB = ArrayUtil.deepCopy(test);
+	test[1][0] = 100;
+	var _g1 = 0;
+	var _g = copyA.length;
+	while(_g1 < _g) {
+		var i = _g1++;
+		var _g3 = 0;
+		var _g2 = copyA[i].length;
+		while(_g3 < _g2) console.log(copyA[i][_g3++]);
+	}
+	var _g11 = 0;
+	var _g4 = copyB.length;
+	while(_g11 < _g4) {
+		var i1 = _g11++;
+		var _g31 = 0;
+		var _g21 = copyB[i1].length;
+		while(_g31 < _g21) console.log(copyB[i1][_g31++]);
+	}
+};
+ArrayUtil.deepCopy = function(arr) {
+	if(arr.length > 0 && ((arr[0] instanceof Array) && arr[0].__enum__ == null)) {
+		var r = [];
+		var _g1 = 0;
+		var _g = arr.length;
+		while(_g1 < _g) {
+			var i = _g1++;
+			r.push(ArrayUtil.deepCopy(arr[i]));
+		}
+		return r;
+	} else {
+		return arr.slice();
+	}
+};
 var HxOverrides = function() { };
 HxOverrides.__name__ = true;
 HxOverrides.cca = function(s,index) {
@@ -30,8 +68,8 @@ HxOverrides.substr = function(s,pos,len) {
 var Main = function() { };
 Main.__name__ = true;
 Main.main = function() {
-	Numcp.ones([3,4,5]);
-	console.log(Numcp.array([[1,2,3],[4,5,6]]));
+	var ms = Numcp.array([1,2,3]);
+	console.log(ms.adds(ms));
 };
 Math.__name__ = true;
 var Ndarray = function(vec) {
@@ -94,8 +132,7 @@ Ndarray.prototype = {
 	}
 	,getDimNumber: function() {
 		var str_presentation = "" + Std.string(this.vec);
-		console.log(str_presentation);
-		str_presentation = str_presentation.substring(0,str_presentation.indexOf("],"));
+		str_presentation = str_presentation.substring(0,str_presentation.indexOf("]"));
 		var bracket_pos = str_presentation.indexOf("[");
 		var dims = 0;
 		while(bracket_pos >= 0) {
@@ -104,6 +141,148 @@ Ndarray.prototype = {
 			bracket_pos = str_presentation.indexOf("[");
 		}
 		return dims;
+	}
+	,transform: function(func) {
+		return this.__transformArray(func);
+	}
+	,broadcastOperation: function(another,func) {
+		if(Numcp.isNdarray(another)) {
+			return this.__broadcastOperation(another,func);
+		} else if(Numcp.isArray(another)) {
+			return this.__broadcastOperation(new Ndarray_$Dynamic(another),func);
+		} else {
+			return this.__broadcastOperationWithSingleItem(another,func);
+		}
+	}
+	,adds: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a + b;
+		});
+	}
+	,minus: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a - b;
+		});
+	}
+	,times: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a * b;
+		});
+	}
+	,divides: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a / b;
+		});
+	}
+	,mods: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a % b;
+		});
+	}
+	,floor: function() {
+		return this.transform(function(a) {
+			return Math.floor(a);
+		});
+	}
+	,ceil: function() {
+		return this.transform(function(a) {
+			return Math.ceil(a);
+		});
+	}
+	,sum: function(axis) {
+		if(axis == null) {
+			axis = 0;
+		}
+	}
+	,__broadcastOperationWithSingleItem: function(item,func) {
+		var allIndexes = this.getAllItemIndexes();
+		var copiedOfThisObj = new Ndarray(ArrayUtil.deepCopy(this.vec));
+		var _g = 0;
+		while(_g < allIndexes.length) {
+			var selection = allIndexes[_g];
+			++_g;
+			copiedOfThisObj.setItemOnIndex(selection,func(js_Boot.__cast(copiedOfThisObj.getItemOnIndex(selection) , Float),js_Boot.__cast(item , Float)));
+		}
+		return copiedOfThisObj;
+	}
+	,__transformArray: function(func) {
+		var copiedOfThisObj = new Ndarray(ArrayUtil.deepCopy(this.vec));
+		var allIndexes = this.getAllItemIndexes();
+		var _g = 0;
+		while(_g < allIndexes.length) {
+			var selection = allIndexes[_g];
+			++_g;
+			copiedOfThisObj.setItemOnIndex(selection,func(js_Boot.__cast(copiedOfThisObj.getItemOnIndex(selection) , Float)));
+		}
+		return copiedOfThisObj;
+	}
+	,__broadcastOperation: function(another,func) {
+		if(Utils.equalInSimpleIntList(this.shape().toList(),another.shape().toList())) {
+			var copiedOfThisObj = new Ndarray(ArrayUtil.deepCopy(this.vec));
+			var allIndexes = this.getAllItemIndexes();
+			var _g = 0;
+			while(_g < allIndexes.length) {
+				var selection = allIndexes[_g];
+				++_g;
+				copiedOfThisObj.setItemOnIndex(selection,func(js_Boot.__cast(copiedOfThisObj.getItemOnIndex(selection) , Float),js_Boot.__cast(another.getItemOnIndex(selection) , Float)));
+			}
+			return copiedOfThisObj;
+		} else {
+			console.log("ERROR: shape not matched, expect " + Std.string(this.shape().toList()) + ", but got " + Std.string(another.shape().toList()));
+			return null;
+		}
+	}
+	,getAllItemIndexes: function() {
+		var arrayShape = this._shape;
+		var _g = [];
+		var _g2 = 0;
+		var _g1 = arrayShape[0];
+		while(_g2 < _g1) _g.push(_g2++ + "");
+		var retList = _g;
+		var _g21 = 1;
+		var _g11 = arrayShape.length;
+		while(_g21 < _g11) retList = this.generateIndexes(retList,arrayShape[_g21++]);
+		var result = [];
+		var _g12 = 0;
+		while(_g12 < retList.length) {
+			var indexStr = retList[_g12];
+			++_g12;
+			var indice = indexStr.split("-");
+			var itemList = [];
+			var _g22 = 0;
+			while(_g22 < indice.length) {
+				var index = indice[_g22];
+				++_g22;
+				itemList.push(Std.parseInt(index));
+			}
+			result.push(itemList);
+		}
+		return result;
+	}
+	,generateIndexes: function(resultList,dim) {
+		var newRetList = [];
+		var _g = 0;
+		while(_g < resultList.length) {
+			var arrayItem = resultList[_g];
+			++_g;
+			var _g2 = 0;
+			while(_g2 < dim) newRetList.push(arrayItem + "-" + _g2++);
+		}
+		return newRetList;
+	}
+	,setItemOnIndex: function(item_index,value) {
+		var __vec__ = js_Boot.__cast(this.vec , Array);
+		var _g1 = 0;
+		var _g = item_index.length - 1;
+		while(_g1 < _g) __vec__ = __vec__[item_index[_g1++]];
+		__vec__[item_index[item_index.length - 1]] = value;
+	}
+	,getItemOnIndex: function(item_index) {
+		var __vec__ = js_Boot.__cast(this.vec , Array);
+		var _g1 = 0;
+		var _g = item_index.length;
+		while(_g1 < _g) __vec__ = __vec__[item_index[_g1++]];
+		return __vec__;
 	}
 	,getShape: function() {
 		var dim_list = [];
@@ -121,9 +300,8 @@ Ndarray.prototype = {
 		return dim_list;
 	}
 	,toString: function() {
-		var str = "\narray(" + Std.string(this.vec) + ")";
-		var output = StringTools.replace(str,"]],[[","]],\n\t[[");
-		output = StringTools.replace(str,"],[","],\n\t[");
+		var output = StringTools.replace("\narray(" + Std.string(this.vec) + ")","]],[[","]],\n\t[[");
+		output = StringTools.replace(output,"],[","],\n\t[");
 		return output;
 	}
 	,__class__: Ndarray
@@ -188,8 +366,7 @@ Ndarray_$Any.prototype = {
 	}
 	,getDimNumber: function() {
 		var str_presentation = "" + Std.string(this.vec);
-		console.log(str_presentation);
-		str_presentation = str_presentation.substring(0,str_presentation.indexOf("],"));
+		str_presentation = str_presentation.substring(0,str_presentation.indexOf("]"));
 		var bracket_pos = str_presentation.indexOf("[");
 		var dims = 0;
 		while(bracket_pos >= 0) {
@@ -198,6 +375,148 @@ Ndarray_$Any.prototype = {
 			bracket_pos = str_presentation.indexOf("[");
 		}
 		return dims;
+	}
+	,transform: function(func) {
+		return this.__transformArray(func);
+	}
+	,broadcastOperation: function(another,func) {
+		if(Numcp.isNdarray(another)) {
+			return this.__broadcastOperation(another,func);
+		} else if(Numcp.isArray(another)) {
+			return this.__broadcastOperation(new Ndarray_$Dynamic(another),func);
+		} else {
+			return this.__broadcastOperationWithSingleItem(another,func);
+		}
+	}
+	,adds: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a + b;
+		});
+	}
+	,minus: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a - b;
+		});
+	}
+	,times: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a * b;
+		});
+	}
+	,divides: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a / b;
+		});
+	}
+	,mods: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a % b;
+		});
+	}
+	,floor: function() {
+		return this.transform(function(a) {
+			return Math.floor(a);
+		});
+	}
+	,ceil: function() {
+		return this.transform(function(a) {
+			return Math.ceil(a);
+		});
+	}
+	,sum: function(axis) {
+		if(axis == null) {
+			axis = 0;
+		}
+	}
+	,__broadcastOperationWithSingleItem: function(item,func) {
+		var allIndexes = this.getAllItemIndexes();
+		var copiedOfThisObj = new Ndarray_$Any(ArrayUtil.deepCopy(this.vec));
+		var _g = 0;
+		while(_g < allIndexes.length) {
+			var selection = allIndexes[_g];
+			++_g;
+			copiedOfThisObj.setItemOnIndex(selection,func(js_Boot.__cast(copiedOfThisObj.getItemOnIndex(selection) , Float),js_Boot.__cast(item , Float)));
+		}
+		return copiedOfThisObj;
+	}
+	,__transformArray: function(func) {
+		var copiedOfThisObj = new Ndarray_$Any(ArrayUtil.deepCopy(this.vec));
+		var allIndexes = this.getAllItemIndexes();
+		var _g = 0;
+		while(_g < allIndexes.length) {
+			var selection = allIndexes[_g];
+			++_g;
+			copiedOfThisObj.setItemOnIndex(selection,func(js_Boot.__cast(copiedOfThisObj.getItemOnIndex(selection) , Float)));
+		}
+		return copiedOfThisObj;
+	}
+	,__broadcastOperation: function(another,func) {
+		if(Utils.equalInSimpleIntList(this.shape().toList(),another.shape().toList())) {
+			var copiedOfThisObj = new Ndarray_$Any(ArrayUtil.deepCopy(this.vec));
+			var allIndexes = this.getAllItemIndexes();
+			var _g = 0;
+			while(_g < allIndexes.length) {
+				var selection = allIndexes[_g];
+				++_g;
+				copiedOfThisObj.setItemOnIndex(selection,func(js_Boot.__cast(copiedOfThisObj.getItemOnIndex(selection) , Float),js_Boot.__cast(another.getItemOnIndex(selection) , Float)));
+			}
+			return copiedOfThisObj;
+		} else {
+			console.log("ERROR: shape not matched, expect " + Std.string(this.shape().toList()) + ", but got " + Std.string(another.shape().toList()));
+			return null;
+		}
+	}
+	,getAllItemIndexes: function() {
+		var arrayShape = this._shape;
+		var _g = [];
+		var _g2 = 0;
+		var _g1 = arrayShape[0];
+		while(_g2 < _g1) _g.push(_g2++ + "");
+		var retList = _g;
+		var _g21 = 1;
+		var _g11 = arrayShape.length;
+		while(_g21 < _g11) retList = this.generateIndexes(retList,arrayShape[_g21++]);
+		var result = [];
+		var _g12 = 0;
+		while(_g12 < retList.length) {
+			var indexStr = retList[_g12];
+			++_g12;
+			var indice = indexStr.split("-");
+			var itemList = [];
+			var _g22 = 0;
+			while(_g22 < indice.length) {
+				var index = indice[_g22];
+				++_g22;
+				itemList.push(Std.parseInt(index));
+			}
+			result.push(itemList);
+		}
+		return result;
+	}
+	,generateIndexes: function(resultList,dim) {
+		var newRetList = [];
+		var _g = 0;
+		while(_g < resultList.length) {
+			var arrayItem = resultList[_g];
+			++_g;
+			var _g2 = 0;
+			while(_g2 < dim) newRetList.push(arrayItem + "-" + _g2++);
+		}
+		return newRetList;
+	}
+	,setItemOnIndex: function(item_index,value) {
+		var __vec__ = js_Boot.__cast(this.vec , Array);
+		var _g1 = 0;
+		var _g = item_index.length - 1;
+		while(_g1 < _g) __vec__ = __vec__[item_index[_g1++]];
+		__vec__[item_index[item_index.length - 1]] = value;
+	}
+	,getItemOnIndex: function(item_index) {
+		var __vec__ = js_Boot.__cast(this.vec , Array);
+		var _g1 = 0;
+		var _g = item_index.length;
+		while(_g1 < _g) __vec__ = __vec__[item_index[_g1++]];
+		return __vec__;
 	}
 	,getShape: function() {
 		var dim_list = [];
@@ -215,9 +534,8 @@ Ndarray_$Any.prototype = {
 		return dim_list;
 	}
 	,toString: function() {
-		var str = "\narray(" + Std.string(this.vec) + ")";
-		var output = StringTools.replace(str,"]],[[","]],\n\t[[");
-		output = StringTools.replace(str,"],[","],\n\t[");
+		var output = StringTools.replace("\narray(" + Std.string(this.vec) + ")","]],[[","]],\n\t[[");
+		output = StringTools.replace(output,"],[","],\n\t[");
 		return output;
 	}
 	,__class__: Ndarray_$Any
@@ -282,8 +600,7 @@ Ndarray_$Dynamic.prototype = {
 	}
 	,getDimNumber: function() {
 		var str_presentation = "" + Std.string(this.vec);
-		console.log(str_presentation);
-		str_presentation = str_presentation.substring(0,str_presentation.indexOf("],"));
+		str_presentation = str_presentation.substring(0,str_presentation.indexOf("]"));
 		var bracket_pos = str_presentation.indexOf("[");
 		var dims = 0;
 		while(bracket_pos >= 0) {
@@ -292,6 +609,148 @@ Ndarray_$Dynamic.prototype = {
 			bracket_pos = str_presentation.indexOf("[");
 		}
 		return dims;
+	}
+	,transform: function(func) {
+		return this.__transformArray(func);
+	}
+	,broadcastOperation: function(another,func) {
+		if(Numcp.isNdarray(another)) {
+			return this.__broadcastOperation(another,func);
+		} else if(Numcp.isArray(another)) {
+			return this.__broadcastOperation(new Ndarray_$Dynamic(another),func);
+		} else {
+			return this.__broadcastOperationWithSingleItem(another,func);
+		}
+	}
+	,adds: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a + b;
+		});
+	}
+	,minus: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a - b;
+		});
+	}
+	,times: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a * b;
+		});
+	}
+	,divides: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a / b;
+		});
+	}
+	,mods: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a % b;
+		});
+	}
+	,floor: function() {
+		return this.transform(function(a) {
+			return Math.floor(a);
+		});
+	}
+	,ceil: function() {
+		return this.transform(function(a) {
+			return Math.ceil(a);
+		});
+	}
+	,sum: function(axis) {
+		if(axis == null) {
+			axis = 0;
+		}
+	}
+	,__broadcastOperationWithSingleItem: function(item,func) {
+		var allIndexes = this.getAllItemIndexes();
+		var copiedOfThisObj = new Ndarray_$Dynamic(ArrayUtil.deepCopy(this.vec));
+		var _g = 0;
+		while(_g < allIndexes.length) {
+			var selection = allIndexes[_g];
+			++_g;
+			copiedOfThisObj.setItemOnIndex(selection,func(js_Boot.__cast(copiedOfThisObj.getItemOnIndex(selection) , Float),js_Boot.__cast(item , Float)));
+		}
+		return copiedOfThisObj;
+	}
+	,__transformArray: function(func) {
+		var copiedOfThisObj = new Ndarray_$Dynamic(ArrayUtil.deepCopy(this.vec));
+		var allIndexes = this.getAllItemIndexes();
+		var _g = 0;
+		while(_g < allIndexes.length) {
+			var selection = allIndexes[_g];
+			++_g;
+			copiedOfThisObj.setItemOnIndex(selection,func(js_Boot.__cast(copiedOfThisObj.getItemOnIndex(selection) , Float)));
+		}
+		return copiedOfThisObj;
+	}
+	,__broadcastOperation: function(another,func) {
+		if(Utils.equalInSimpleIntList(this.shape().toList(),another.shape().toList())) {
+			var copiedOfThisObj = new Ndarray_$Dynamic(ArrayUtil.deepCopy(this.vec));
+			var allIndexes = this.getAllItemIndexes();
+			var _g = 0;
+			while(_g < allIndexes.length) {
+				var selection = allIndexes[_g];
+				++_g;
+				copiedOfThisObj.setItemOnIndex(selection,func(js_Boot.__cast(copiedOfThisObj.getItemOnIndex(selection) , Float),js_Boot.__cast(another.getItemOnIndex(selection) , Float)));
+			}
+			return copiedOfThisObj;
+		} else {
+			console.log("ERROR: shape not matched, expect " + Std.string(this.shape().toList()) + ", but got " + Std.string(another.shape().toList()));
+			return null;
+		}
+	}
+	,getAllItemIndexes: function() {
+		var arrayShape = this._shape;
+		var _g = [];
+		var _g2 = 0;
+		var _g1 = arrayShape[0];
+		while(_g2 < _g1) _g.push(_g2++ + "");
+		var retList = _g;
+		var _g21 = 1;
+		var _g11 = arrayShape.length;
+		while(_g21 < _g11) retList = this.generateIndexes(retList,arrayShape[_g21++]);
+		var result = [];
+		var _g12 = 0;
+		while(_g12 < retList.length) {
+			var indexStr = retList[_g12];
+			++_g12;
+			var indice = indexStr.split("-");
+			var itemList = [];
+			var _g22 = 0;
+			while(_g22 < indice.length) {
+				var index = indice[_g22];
+				++_g22;
+				itemList.push(Std.parseInt(index));
+			}
+			result.push(itemList);
+		}
+		return result;
+	}
+	,generateIndexes: function(resultList,dim) {
+		var newRetList = [];
+		var _g = 0;
+		while(_g < resultList.length) {
+			var arrayItem = resultList[_g];
+			++_g;
+			var _g2 = 0;
+			while(_g2 < dim) newRetList.push(arrayItem + "-" + _g2++);
+		}
+		return newRetList;
+	}
+	,setItemOnIndex: function(item_index,value) {
+		var __vec__ = js_Boot.__cast(this.vec , Array);
+		var _g1 = 0;
+		var _g = item_index.length - 1;
+		while(_g1 < _g) __vec__ = __vec__[item_index[_g1++]];
+		__vec__[item_index[item_index.length - 1]] = value;
+	}
+	,getItemOnIndex: function(item_index) {
+		var __vec__ = js_Boot.__cast(this.vec , Array);
+		var _g1 = 0;
+		var _g = item_index.length;
+		while(_g1 < _g) __vec__ = __vec__[item_index[_g1++]];
+		return __vec__;
 	}
 	,getShape: function() {
 		var dim_list = [];
@@ -309,9 +768,8 @@ Ndarray_$Dynamic.prototype = {
 		return dim_list;
 	}
 	,toString: function() {
-		var str = "\narray(" + Std.string(this.vec) + ")";
-		var output = StringTools.replace(str,"]],[[","]],\n\t[[");
-		output = StringTools.replace(str,"],[","],\n\t[");
+		var output = StringTools.replace("\narray(" + Std.string(this.vec) + ")","]],[[","]],\n\t[[");
+		output = StringTools.replace(output,"],[","],\n\t[");
 		return output;
 	}
 	,__class__: Ndarray_$Dynamic
@@ -376,8 +834,7 @@ Ndarray_$Int.prototype = {
 	}
 	,getDimNumber: function() {
 		var str_presentation = "" + Std.string(this.vec);
-		console.log(str_presentation);
-		str_presentation = str_presentation.substring(0,str_presentation.indexOf("],"));
+		str_presentation = str_presentation.substring(0,str_presentation.indexOf("]"));
 		var bracket_pos = str_presentation.indexOf("[");
 		var dims = 0;
 		while(bracket_pos >= 0) {
@@ -386,6 +843,148 @@ Ndarray_$Int.prototype = {
 			bracket_pos = str_presentation.indexOf("[");
 		}
 		return dims;
+	}
+	,transform: function(func) {
+		return this.__transformArray(func);
+	}
+	,broadcastOperation: function(another,func) {
+		if(Numcp.isNdarray(another)) {
+			return this.__broadcastOperation(another,func);
+		} else if(Numcp.isArray(another)) {
+			return this.__broadcastOperation(new Ndarray_$Dynamic(another),func);
+		} else {
+			return this.__broadcastOperationWithSingleItem(another,func);
+		}
+	}
+	,adds: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a + b;
+		});
+	}
+	,minus: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a - b;
+		});
+	}
+	,times: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a * b;
+		});
+	}
+	,divides: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a / b;
+		});
+	}
+	,mods: function(another) {
+		return this.broadcastOperation(another,function(a,b) {
+			return a % b;
+		});
+	}
+	,floor: function() {
+		return this.transform(function(a) {
+			return Math.floor(a);
+		});
+	}
+	,ceil: function() {
+		return this.transform(function(a) {
+			return Math.ceil(a);
+		});
+	}
+	,sum: function(axis) {
+		if(axis == null) {
+			axis = 0;
+		}
+	}
+	,__broadcastOperationWithSingleItem: function(item,func) {
+		var allIndexes = this.getAllItemIndexes();
+		var copiedOfThisObj = new Ndarray_$Int(ArrayUtil.deepCopy(this.vec));
+		var _g = 0;
+		while(_g < allIndexes.length) {
+			var selection = allIndexes[_g];
+			++_g;
+			copiedOfThisObj.setItemOnIndex(selection,func(js_Boot.__cast(copiedOfThisObj.getItemOnIndex(selection) , Float),js_Boot.__cast(item , Float)));
+		}
+		return copiedOfThisObj;
+	}
+	,__transformArray: function(func) {
+		var copiedOfThisObj = new Ndarray_$Int(ArrayUtil.deepCopy(this.vec));
+		var allIndexes = this.getAllItemIndexes();
+		var _g = 0;
+		while(_g < allIndexes.length) {
+			var selection = allIndexes[_g];
+			++_g;
+			copiedOfThisObj.setItemOnIndex(selection,func(js_Boot.__cast(copiedOfThisObj.getItemOnIndex(selection) , Float)));
+		}
+		return copiedOfThisObj;
+	}
+	,__broadcastOperation: function(another,func) {
+		if(Utils.equalInSimpleIntList(this.shape().toList(),another.shape().toList())) {
+			var copiedOfThisObj = new Ndarray_$Int(ArrayUtil.deepCopy(this.vec));
+			var allIndexes = this.getAllItemIndexes();
+			var _g = 0;
+			while(_g < allIndexes.length) {
+				var selection = allIndexes[_g];
+				++_g;
+				copiedOfThisObj.setItemOnIndex(selection,func(js_Boot.__cast(copiedOfThisObj.getItemOnIndex(selection) , Float),js_Boot.__cast(another.getItemOnIndex(selection) , Float)));
+			}
+			return copiedOfThisObj;
+		} else {
+			console.log("ERROR: shape not matched, expect " + Std.string(this.shape().toList()) + ", but got " + Std.string(another.shape().toList()));
+			return null;
+		}
+	}
+	,getAllItemIndexes: function() {
+		var arrayShape = this._shape;
+		var _g = [];
+		var _g2 = 0;
+		var _g1 = arrayShape[0];
+		while(_g2 < _g1) _g.push(_g2++ + "");
+		var retList = _g;
+		var _g21 = 1;
+		var _g11 = arrayShape.length;
+		while(_g21 < _g11) retList = this.generateIndexes(retList,arrayShape[_g21++]);
+		var result = [];
+		var _g12 = 0;
+		while(_g12 < retList.length) {
+			var indexStr = retList[_g12];
+			++_g12;
+			var indice = indexStr.split("-");
+			var itemList = [];
+			var _g22 = 0;
+			while(_g22 < indice.length) {
+				var index = indice[_g22];
+				++_g22;
+				itemList.push(Std.parseInt(index));
+			}
+			result.push(itemList);
+		}
+		return result;
+	}
+	,generateIndexes: function(resultList,dim) {
+		var newRetList = [];
+		var _g = 0;
+		while(_g < resultList.length) {
+			var arrayItem = resultList[_g];
+			++_g;
+			var _g2 = 0;
+			while(_g2 < dim) newRetList.push(arrayItem + "-" + _g2++);
+		}
+		return newRetList;
+	}
+	,setItemOnIndex: function(item_index,value) {
+		var __vec__ = js_Boot.__cast(this.vec , Array);
+		var _g1 = 0;
+		var _g = item_index.length - 1;
+		while(_g1 < _g) __vec__ = __vec__[item_index[_g1++]];
+		__vec__[item_index[item_index.length - 1]] = value;
+	}
+	,getItemOnIndex: function(item_index) {
+		var __vec__ = js_Boot.__cast(this.vec , Array);
+		var _g1 = 0;
+		var _g = item_index.length;
+		while(_g1 < _g) __vec__ = __vec__[item_index[_g1++]];
+		return __vec__;
 	}
 	,getShape: function() {
 		var dim_list = [];
@@ -403,9 +1002,8 @@ Ndarray_$Int.prototype = {
 		return dim_list;
 	}
 	,toString: function() {
-		var str = "\narray(" + Std.string(this.vec) + ")";
-		var output = StringTools.replace(str,"]],[[","]],\n\t[[");
-		output = StringTools.replace(str,"],[","],\n\t[");
+		var output = StringTools.replace("\narray(" + Std.string(this.vec) + ")","]],[[","]],\n\t[[");
+		output = StringTools.replace(output,"],[","],\n\t[");
 		return output;
 	}
 	,__class__: Ndarray_$Int
@@ -413,31 +1011,45 @@ Ndarray_$Int.prototype = {
 var Numcp = function() { };
 Numcp.__name__ = true;
 Numcp.array = function(vec) {
-	return new Ndarray_$Any(vec);
+	return new Ndarray_$Dynamic(vec);
+};
+Numcp.isNdarray = function(obj) {
+	var strRepresentation = "" + Std.string(obj);
+	strRepresentation = StringTools.trim(strRepresentation);
+	if(strRepresentation.indexOf("array") == 0) {
+		return true;
+	}
+	return false;
+};
+Numcp.isArray = function(obj) {
+	var strRepresentation = "" + Std.string(obj);
+	strRepresentation = StringTools.trim(strRepresentation);
+	if(strRepresentation.indexOf("[") == 0) {
+		return true;
+	}
+	return false;
 };
 Numcp.arrayWithSameElement = function(shape,element) {
 	var dim = shape.length;
 	shape.reverse();
-	var _g = [];
-	var _g2 = 0;
-	var _g1 = shape[0];
-	while(_g2 < _g1) {
-		++_g2;
-		_g.push(element);
-	}
-	var base = _g;
-	var _g21 = 1;
-	while(_g21 < dim) {
-		var _g3 = [];
-		var _g5 = 0;
-		var _g4 = shape[_g21++];
-		while(_g5 < _g4) {
-			++_g5;
-			_g3.push(base);
-		}
-		base = _g3;
-	}
+	var base = Numcp.createAListOfCopies(shape[0],element);
+	var _g1 = 1;
+	while(_g1 < dim) base = Numcp.createAListOfCopies(shape[_g1++],base);
 	return base;
+};
+Numcp.createAListOfCopies = function(num,obj) {
+	var retList = [];
+	var _g1 = 0;
+	var _g = num;
+	while(_g1 < _g) {
+		_g1++;
+		var objCopied = obj;
+		if((obj instanceof Array) && obj.__enum__ == null) {
+			objCopied = ArrayUtil.deepCopy(obj);
+		}
+		retList.push(objCopied);
+	}
+	return retList;
 };
 Numcp.createElementRecursive = function() {
 };
@@ -450,6 +1062,16 @@ Numcp.ones = function(shape) {
 Numcp.all = function(array_like) {
 	if(!((array_like instanceof Array) && array_like.__enum__ == null)) {
 		js_Boot.__instanceof(array_like,Ndarray);
+	}
+};
+Numcp.add = function(array_or_number1,array_or_number2) {
+	if((array_or_number1 instanceof Array) && array_or_number1.__enum__ == null && ((array_or_number2 instanceof Array) && array_or_number2.__enum__ == null)) {
+		var ndarray1 = new Ndarray_$Any(array_or_number1);
+		var ndarray2 = new Ndarray_$Any(array_or_number2);
+		ndarray1.shape().toList();
+		ndarray2.shape().toList();
+	} else {
+		js_Boot.__instanceof(array_or_number1,Ndarray);
 	}
 };
 Numcp.all_nadarray = function(array) {
@@ -541,6 +1163,32 @@ StringTools.replace = function(s,sub,by) {
 };
 var Utils = function() { };
 Utils.__name__ = true;
+Utils.equalInValue = function(m,n) {
+	return true;
+};
+Utils.compare = function(a,b) {
+	if(a < b) {
+		return -1;
+	} else if(a == b) {
+		return 0;
+	} else {
+		return 1;
+	}
+};
+Utils.equalInSimpleIntList = function(m,n) {
+	if(m.length != n.length) {
+		return false;
+	}
+	var _g = 0;
+	while(_g < m.length) {
+		var i = m[_g];
+		++_g;
+		if(n.indexOf(i) < 0) {
+			return false;
+		}
+	}
+	return true;
+};
 Utils.print = function(content) {
 	console.log(content);
 };

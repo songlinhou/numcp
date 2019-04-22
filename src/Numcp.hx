@@ -10,6 +10,24 @@ class Numcp{
         return ndarry;
     }
 
+    public static function isNdarray(obj:Dynamic){
+        var strRepresentation = "" + obj;
+        strRepresentation = StringTools.trim(strRepresentation);
+        if(strRepresentation.indexOf("array") == 0){
+            return true;
+        }
+        return false;
+    }
+
+    public static function isArray(obj:Dynamic){
+        var strRepresentation = "" + obj;
+        strRepresentation = StringTools.trim(strRepresentation);
+        if(strRepresentation.indexOf("[") == 0){
+            return true;
+        }
+        return false;
+    }
+
     private static function arrayWithSameElement(shape:Array<Int>,element:Any):Array<Dynamic>{
         //var ret = [];
         var dim = shape.length;
